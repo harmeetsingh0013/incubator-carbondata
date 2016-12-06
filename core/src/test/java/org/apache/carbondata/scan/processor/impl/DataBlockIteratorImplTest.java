@@ -58,6 +58,7 @@ import org.apache.carbondata.core.datastorage.store.FileHolder;
 import org.apache.carbondata.core.datastorage.store.impl.FileHolderImpl;
 import org.apache.carbondata.core.metadata.ValueEncoderMeta;
 import org.apache.carbondata.core.util.CarbonUtil;
+import org.apache.carbondata.scan.collector.impl.DictionaryBasedResultCollector;
 import org.apache.carbondata.scan.executor.infos.AggregatorInfo;
 import org.apache.carbondata.scan.executor.infos.BlockExecutionInfo;
 import org.apache.carbondata.scan.filter.DimColumnFilterInfo;
@@ -66,6 +67,8 @@ import org.apache.carbondata.scan.filter.resolver.resolverinfo.DimColumnResolved
 import org.apache.carbondata.scan.model.QueryDimension;
 import org.apache.carbondata.scan.model.QueryMeasure;
 import org.apache.carbondata.scan.model.SortOrderType;
+import org.apache.carbondata.scan.processor.BlockletIterator;
+import org.apache.carbondata.scan.result.AbstractScannedResult;
 import org.apache.carbondata.scan.result.impl.FilterQueryScannedResult;
 
 import mockit.Mock;
@@ -88,6 +91,7 @@ public class DataBlockIteratorImplTest {
   private BTreeBuilderInfo bTreeBuilderInfo;
   private BlockletBTreeLeafNode blockletBTreeLeafNode;
   private SegmentProperties segmentProperties;
+  private IncludeFilterExecuterImpl includeFilterExecuter;
 
   @Before public void init() {
     List<Encoding> encodeList = new ArrayList<>(CarbonCommonConstants.DEFAULT_COLLECTION_SIZE);
@@ -145,7 +149,7 @@ public class DataBlockIteratorImplTest {
     List<DataFileFooter> footerList = getDataFileFooterList();
     bTreeBuilderInfo = new BTreeBuilderInfo(footerList, new int[] { 1, 1 });
     blockletBTreeLeafNode = new BlockletBTreeLeafNode(bTreeBuilderInfo, 0, 0);
-    blockExecutionInfo.setFirstDataBlock(blockletBTreeLeafNode);
+
 
     DimColumnFilterInfo dimColumnFilterInfo = new DimColumnFilterInfo();
     dimColumnFilterInfo.setIncludeFilter(false);
@@ -160,16 +164,14 @@ public class DataBlockIteratorImplTest {
     dimColumnResolvedFilterInfo.setColumnIndex(0);
     dimColumnResolvedFilterInfo.setFilterValues(dimColumnFilterInfo);
 
-    IncludeFilterExecuterImpl includeFilterExecuter =
+    includeFilterExecuter =
         new IncludeFilterExecuterImpl(dimColumnResolvedFilterInfo, segmentProperties);
 
     blockExecutionInfo.setFilterExecuterTree(includeFilterExecuter);
 
-    dataBlockIterator =
-        new DataBlockIteratorImpl(blockExecutionInfo, fileHolder, 10000, queryStatisticsModel);
   }
 
-  @Test public void testNext() {
+  @Test public void testNextI() {
 
     new MockUp<QueryStatisticsModel>() {
       @Mock public QueryStatisticsRecorder getRecorder() {
@@ -205,9 +207,125 @@ public class DataBlockIteratorImplTest {
       }
     };
 
+    blockExecutionInfo.setFirstDataBlock(blockletBTreeLeafNode);
+    dataBlockIterator =
+        new DataBlockIteratorImpl(blockExecutionInfo, fileHolder, 10, queryStatisticsModel);
+
     List<Object[]> result = dataBlockIterator.next();
 
-    int expectedResult = 10000;
+    int expectedResult = 10;
+
+    assertThat(result.size(), is(equalTo(expectedResult)));
+  }
+
+  @Test public void testNextII() {
+
+    new MockUp<QueryStatisticsModel>() {
+      @Mock public QueryStatisticsRecorder getRecorder() {
+        return new QueryStatisticsRecorderDummy("123456");
+      }
+    };
+
+    new MockUp<BlockletIterator>() {
+
+      @Mock
+      public boolean hasNext() {
+        return false;
+      }
+    };
+
+    new MockUp<CarbonUtil>() {
+      @Mock public boolean[] getDictionaryEncodingArray(QueryDimension[] queryDimensions) {
+        return new boolean[] { true };
+      }
+
+      @Mock public boolean[] getDirectDictionaryEncodingArray(QueryDimension[] queryDimensions) {
+        return new boolean[] { false };
+      }
+
+      @Mock public boolean[] getComplexDataTypeArray(QueryDimension[] queryDimensions) {
+        return new boolean[] { false };
+      }
+    };
+
+    new MockUp<FilterQueryScannedResult>() {
+      @Mock public int[] getDictionaryKeyIntegerArray() {
+        return new int[] { 2 };
+      }
+
+      @Mock public String[] getNoDictionaryKeyStringArray() {
+        return new String[] {};
+      }
+
+      @Mock public byte[][] getComplexTypeKeyArray() {
+        return new byte[][] { {} };
+      }
+    };
+
+    blockExecutionInfo.setFirstDataBlock(blockletBTreeLeafNode);
+    blockExecutionInfo.setNumberOfBlockletToScan(0);
+    dataBlockIterator =
+        new DataBlockIteratorImpl(blockExecutionInfo, fileHolder, 10, queryStatisticsModel);
+
+    List<Object[]> result = dataBlockIterator.next();
+
+    int expectedResult = 0;
+
+    assertThat(result.size(), is(equalTo(expectedResult)));
+  }
+
+  @Test public void testNextIII() {
+
+    new MockUp<QueryStatisticsModel>() {
+      @Mock public QueryStatisticsRecorder getRecorder() {
+        return new QueryStatisticsRecorderDummy("123456");
+      }
+    };
+
+    new MockUp<DictionaryBasedResultCollector>() {
+      @Mock
+      public List<Object[]> collectData(AbstractScannedResult scannedResult, int batchSize) {
+        List<Object[]> list = new ArrayList<>(1);
+        list.add(new Object[]{});
+        return list;
+      }
+    };
+
+    new MockUp<CarbonUtil>() {
+      @Mock public boolean[] getDictionaryEncodingArray(QueryDimension[] queryDimensions) {
+        return new boolean[] { true };
+      }
+
+      @Mock public boolean[] getDirectDictionaryEncodingArray(QueryDimension[] queryDimensions) {
+        return new boolean[] { false };
+      }
+
+      @Mock public boolean[] getComplexDataTypeArray(QueryDimension[] queryDimensions) {
+        return new boolean[] { false };
+      }
+    };
+
+    new MockUp<FilterQueryScannedResult>() {
+      @Mock public int[] getDictionaryKeyIntegerArray() {
+        return new int[] { 2 };
+      }
+
+      @Mock public String[] getNoDictionaryKeyStringArray() {
+        return new String[] {};
+      }
+
+      @Mock public byte[][] getComplexTypeKeyArray() {
+        return new byte[][] { {} };
+      }
+    };
+
+    blockExecutionInfo.setFirstDataBlock(blockletBTreeLeafNode);
+    dataBlockIterator =
+        new DataBlockIteratorImpl(blockExecutionInfo, fileHolder, 10, queryStatisticsModel);
+
+    List<Object[]> result = dataBlockIterator.next();
+
+    int expectedResult = 10;
 
     assertThat(result.size(), is(equalTo(expectedResult)));
   }
