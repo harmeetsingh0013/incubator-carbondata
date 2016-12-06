@@ -56,7 +56,6 @@ import org.apache.carbondata.core.constants.CarbonCommonConstants;
 import org.apache.carbondata.core.datastorage.store.FileHolder;
 import org.apache.carbondata.core.datastorage.store.impl.FileHolderImpl;
 import org.apache.carbondata.core.metadata.ValueEncoderMeta;
-import org.apache.carbondata.core.util.CarbonProperties;
 import org.apache.carbondata.core.util.CarbonUtil;
 import org.apache.carbondata.scan.executor.infos.AggregatorInfo;
 import org.apache.carbondata.scan.executor.infos.BlockExecutionInfo;
