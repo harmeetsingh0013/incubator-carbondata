@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.apache.carbondata.core.carbon.ColumnarFormatVersion;
 import org.apache.carbondata.core.carbon.datastore.BTreeBuilderInfo;
 import org.apache.carbondata.core.carbon.datastore.IndexKey;
 import org.apache.carbondata.core.carbon.datastore.block.BlockInfo;
@@ -115,8 +116,8 @@ public class DataBlockIteratorImplTest {
     blockExecutionInfo.setMaskedByteForBlock(new int[] { 0, -1 });
     blockExecutionInfo.setTotalNumberDimensionBlock(2);
     blockExecutionInfo.setTotalNumberOfMeasureBlock(2);
-    blockExecutionInfo.setAllSelectedDimensionBlocksIndexes(new int[] { 0 });
-    blockExecutionInfo.setAllSelectedMeasureBlocksIndexes(new int[] {});
+    blockExecutionInfo.setAllSelectedDimensionBlocksIndexes(new int[][]{});
+    blockExecutionInfo.setAllSelectedMeasureBlocksIndexes(new int[][]{});
     blockExecutionInfo.setQueryMeasures(new QueryMeasure[] {});
 
     QueryDimension queryDimension = new QueryDimension("country");
@@ -262,7 +263,7 @@ public class DataBlockIteratorImplTest {
   private List<DataFileFooter> getDataFileFooterList() {
     DataFileFooter fileFooter = new DataFileFooter();
 
-    fileFooter.setVersionId(1);
+    fileFooter.setVersionId(ColumnarFormatVersion.V1);
     fileFooter.setNumberOfRows(10);
 
     SegmentInfo segmentInfo = new SegmentInfo();
@@ -327,7 +328,7 @@ public class DataBlockIteratorImplTest {
         final String filePath =
             this.getClass().getClassLoader().getResource("sample.carbondata").getPath();
         return new BlockInfo(
-            new TableBlockInfo(filePath, 0, "0", new String[] { "localhost" }, 1324));
+            new TableBlockInfo(filePath, 0, "0", new String[] { "localhost" }, 1324, ColumnarFormatVersion.V1));
       }
     };
 
