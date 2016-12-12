@@ -33,6 +33,12 @@ import org.apache.carbondata.core.carbon.datastore.IndexKey;
 import org.apache.carbondata.core.carbon.datastore.block.BlockInfo;
 import org.apache.carbondata.core.carbon.datastore.block.SegmentProperties;
 import org.apache.carbondata.core.carbon.datastore.block.TableBlockInfo;
+import org.apache.carbondata.core.carbon.datastore.chunk.DimensionChunkAttributes;
+import org.apache.carbondata.core.carbon.datastore.chunk.DimensionColumnDataChunk;
+import org.apache.carbondata.core.carbon.datastore.chunk.MeasureColumnDataChunk;
+import org.apache.carbondata.core.carbon.datastore.chunk.impl.FixedLengthDimensionDataChunk;
+import org.apache.carbondata.core.carbon.datastore.chunk.reader.dimension.v1.CompressedDimensionChunkFileBasedReaderV1;
+import org.apache.carbondata.core.carbon.datastore.chunk.reader.measure.v1.CompressedMeasureChunkFileBasedReaderV1;
 import org.apache.carbondata.core.carbon.datastore.impl.btree.BlockletBTreeLeafNode;
 import org.apache.carbondata.core.carbon.metadata.blocklet.BlockletInfo;
 import org.apache.carbondata.core.carbon.metadata.blocklet.DataFileFooter;
@@ -55,6 +61,7 @@ import org.apache.carbondata.core.carbon.querystatistics.QueryStatisticsRecorder
 import org.apache.carbondata.core.carbon.querystatistics.QueryStatisticsRecorderDummy;
 import org.apache.carbondata.core.constants.CarbonCommonConstants;
 import org.apache.carbondata.core.datastorage.store.FileHolder;
+import org.apache.carbondata.core.datastorage.store.dataholder.CarbonReadDataHolder;
 import org.apache.carbondata.core.datastorage.store.impl.FileHolderImpl;
 import org.apache.carbondata.core.metadata.ValueEncoderMeta;
 import org.apache.carbondata.core.util.CarbonUtil;
@@ -120,8 +127,8 @@ public class DataBlockIteratorImplTest {
     blockExecutionInfo.setMaskedByteForBlock(new int[] { 0, -1 });
     blockExecutionInfo.setTotalNumberDimensionBlock(2);
     blockExecutionInfo.setTotalNumberOfMeasureBlock(2);
-    blockExecutionInfo.setAllSelectedDimensionBlocksIndexes(new int[][]{});
-    blockExecutionInfo.setAllSelectedMeasureBlocksIndexes(new int[][]{});
+    blockExecutionInfo.setAllSelectedDimensionBlocksIndexes(new int[][] {});
+    blockExecutionInfo.setAllSelectedMeasureBlocksIndexes(new int[][] {});
     blockExecutionInfo.setQueryMeasures(new QueryMeasure[] {});
 
     QueryDimension queryDimension = new QueryDimension("country");
@@ -149,7 +156,6 @@ public class DataBlockIteratorImplTest {
     List<DataFileFooter> footerList = getDataFileFooterList();
     bTreeBuilderInfo = new BTreeBuilderInfo(footerList, new int[] { 1, 1 });
     blockletBTreeLeafNode = new BlockletBTreeLeafNode(bTreeBuilderInfo, 0, 0);
-
 
     DimColumnFilterInfo dimColumnFilterInfo = new DimColumnFilterInfo();
     dimColumnFilterInfo.setIncludeFilter(false);
@@ -228,8 +234,7 @@ public class DataBlockIteratorImplTest {
 
     new MockUp<BlockletIterator>() {
 
-      @Mock
-      public boolean hasNext() {
+      @Mock public boolean hasNext() {
         return false;
       }
     };
@@ -283,10 +288,9 @@ public class DataBlockIteratorImplTest {
     };
 
     new MockUp<DictionaryBasedResultCollector>() {
-      @Mock
-      public List<Object[]> collectData(AbstractScannedResult scannedResult, int batchSize) {
+      @Mock public List<Object[]> collectData(AbstractScannedResult scannedResult, int batchSize) {
         List<Object[]> list = new ArrayList<>(1);
-        list.add(new Object[]{});
+        list.add(new Object[] {});
         return list;
       }
     };
@@ -443,10 +447,39 @@ public class DataBlockIteratorImplTest {
 
       @Mock public BlockInfo getBlockInfo() {
 
-        final String filePath =
-            this.getClass().getClassLoader().getResource("sample.carbondata").getPath();
-        return new BlockInfo(
-            new TableBlockInfo(filePath, 0, "0", new String[] { "localhost" }, 1324, ColumnarFormatVersion.V1));
+        return new BlockInfo(new TableBlockInfo("file", 0, "0", new String[] { "localhost" }, 1324,
+            ColumnarFormatVersion.V1));
+      }
+    };
+
+    new MockUp<CompressedDimensionChunkFileBasedReaderV1>() {
+      @Mock
+      public DimensionColumnDataChunk readDimensionChunk(FileHolder fileReader, int blockIndex) {
+        DimensionChunkAttributes chunkAttributes = new DimensionChunkAttributes();
+        chunkAttributes.setEachRowSize(1);
+        byte[] dataChunk = { 2, 2, 2, 2, 2, 2, 2, 2, 2, 3 };
+        return new FixedLengthDimensionDataChunk(dataChunk, chunkAttributes);
+      }
+    };
+
+    new MockUp<CompressedMeasureChunkFileBasedReaderV1>() {
+      @Mock public MeasureColumnDataChunk readMeasureChunk(final FileHolder fileReader,
+          final int blockIndex) {
+        CarbonReadDataHolder dataHolder = new CarbonReadDataHolder();
+        dataHolder.setReadableDoubleValues(
+            new double[] { 7.414E-320, 7.412E-320, 7.4115E-320, 7.4144E-320, 7.4135E-320,
+                7.4125E-320, 7.411E-320, 7.415E-320, 7.413E-320, 7.4154E-320 });
+
+        PresenceMeta presenceMeta = new PresenceMeta();
+        presenceMeta.setRepresentNullValues(false);
+        BitSet bitSet = new BitSet();
+        bitSet.set(1);
+        presenceMeta.setBitSet(bitSet);
+
+        MeasureColumnDataChunk dataChunk = new MeasureColumnDataChunk();
+        dataChunk.setMeasureDataHolder(dataHolder);
+        dataChunk.setNullValueIndexHolder(presenceMeta);
+        return dataChunk;
       }
     };
 
